@@ -221,7 +221,7 @@ def get_info(args):
             "columns" : ["ObjectName","EdgeName","VictimObjectName"]
         },
         "owned-to-hvts" : {
-            "query" : "MATCH p=shortestPath((s)-[:Owns|GenericAll|GenericWrite|WriteOwner|WriteDacl|MemberOf|ForceChangePassword|AllExtendedRights|AddMember|HasSession|GPLink|AllowedToDelegate|CoerceToTGT|AllowedToAct|AdminTo|CanPSRemote|CanRDP|ExecuteDCOM|HasSIDHistory|AddSelf|DCSync|ReadLAPSPassword|ReadGMSAPassword|DumpSMSAPassword|SQLAdmin|AddAllowedToAct|WriteSPN|AddKeyCredentialLink|SyncLAPSPassword|WriteAccountRestrictions|WriteGPLink|GoldenCert|ADCSESC1|ADCSESC3|ADCSESC4|ADCSESC6a|ADCSESC6b|ADCSESC9a|ADCSESC9b|ADCSESC10a|ADCSESC10b|ADCSESC13|SyncedToEntraUser|CoerceAndRelayNTLMToSMB|CoerceAndRelayNTLMToADCS|WriteOwnerLimitedRights|OwnsLimitedRights|CoerceAndRelayNTLMToLDAP|CoerceAndRelayNTLMToLDAPS|HasTrustKeys|Contains|DCFor|SameForestTrust|SpoofSIDHistory|AbuseTGTDelegation*1..]->(t)) WHERE COALESCE(t.system_tags, '') CONTAINS 'admin_tier_0' AND s<>t AND COALESCE(s.system_tags, '') CONTAINS 'owned' RETURN DISTINCT s.name",
+            "query" : "MATCH shortestPath((n)-[*1..]->(m)) WHERE COALESCE(n.system_tags,'') CONTAINS 'owned' AND COALESCE(m.system_tags,'') CONTAINS 'admin_tier_0' RETURN DISTINCT n.name",
             "columns" : ["UserName"]
         },
         "path" : {
