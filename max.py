@@ -328,7 +328,7 @@ def get_info(args):
         cols = queries["foreignprivs"]["columns"]
     elif (args.ownedtohvts):
         query = queries["owned-to-hvts"]["query"]
-        cols = queries["owned-to-hvts"]["query"]
+        cols = queries["owned-to-hvts"]["columns"]
     elif (args.unamesess != ""):
         query = queries["sessions"]["query"].format(uname=args.unamesess.upper().strip())
         cols = queries["sessions"]["columns"]
@@ -752,15 +752,17 @@ def dpat_map_users(args, users, potfile):
         try:
             nt_hash = user[4]
             lm_hash = user[3]
+            nt_blank = nt_hash == "" or nt_hash.lower() == "aad3b435b51404eeaad3b435b51404ee"
+            lm_blank = lm_hash == "" or lm_hash.lower() == "aad3b435b51404eeaad3b435b51404ee"
             ntds_uname = '/'.join(filter(None, [user[1], user[0]])).replace("\\","\\\\").replace("'","\\'")
             username = str(user[0].upper().strip() + "@" + user[1].upper().strip()).replace("\\","\\\\").replace("'","\\'")
             cracked_bool = 'false'
             password = None
             password_query = ''
-            if nt_hash in potfile:
+            if (not nt_blank) and nt_hash in potfile:
                 cracked_bool = 'true'
                 password = potfile[nt_hash]
-            elif lm_hash != "aad3b435b51404eeaad3b435b51404ee" and lm_hash in potfile:
+            elif (not lm_blank) and lm_hash in potfile:
                 cracked_bool = 'true'
                 password = potfile[lm_hash]
 
@@ -771,7 +773,9 @@ def dpat_map_users(args, users, potfile):
                 password = password.replace("\\","\\\\").replace("'","\\'")
                 password_query = "SET u.password='{pwd}'".format(pwd=password)
 
-            cracked_query = "SET u.cracked={cracked_bool} SET u.nt_hash='{nt_hash}' SET u.lm_hash='{lm_hash}' SET u.ntds_uname='{ntds_uname}' {password}".format(cracked_bool=cracked_bool,nt_hash=nt_hash,lm_hash=lm_hash,ntds_uname=ntds_uname,password=password_query)
+            nt_query = "" if nt_blank else "SET u.nt_hash='{nt_hash}'".format(nt_hash=nt_hash)
+            lm_query = "" if lm_blank else "SET u.lm_hash='{lm_hash}'".format(lm_hash=lm_hash)
+            cracked_query = "SET u.cracked={cracked_bool} {nt_query} {lm_query} SET u.ntds_uname='{ntds_uname}' {password}".format(cracked_bool=cracked_bool, nt_query=nt_query, lm_query=lm_query, ntds_uname=ntds_uname, password=password_query)
             query1 = "MATCH (u:User) WHERE u.name='{username1}' OR (u.name STARTS WITH '{username2}@' AND u.objectid ENDS WITH '-{rid}') {cracked_query} RETURN u.name,u.objectid".format(username1=username, username2=user[0].replace("\\","\\\\").replace("'","\\'").upper(), rid=user[2].upper(), cracked_query=cracked_query)
 
             r1 = do_query(args,query1)
