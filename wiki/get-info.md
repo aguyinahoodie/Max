@@ -14,7 +14,7 @@ There are a few things you can extract with this module:
 
 #### Notes
 
-* `users`, `comps`, `groups`, `das`, `dasessions`, `nolaps`, `unconst`, `npusers`, `kerb`, `kerb-la`, `passnotreq`, `owned`, `hvt`, and `owned-to-hvts`  all return simple lists and take no inputs. `owned` and `hvt` leverage the `owned` and `admin_tier_0` system tags respectively.
+* `users`, `comps`, `groups`, `das`, `dasessions`, `nolaps`, `unconst`, `npusers`, `kerb`, `kerb-la`, `passnotreq`, `owned`, `hvt`, and `owned-to-hvts`  all return simple lists and take no inputs. `owned` and `hvt` leverage the `owned` and `admin_tier_0` system tags respectively. `owned-to-hvts` outputs paths from owned users to high value systems.
 * `groups-full` returns all domain groups with their respective members in the format `group@domain.local - member_node_name`
 * `group-members` returns all AD objects that are members of the input `GROUP`
 * `owned-groups` returns a list of owned objects with a list of all groups they are a member of, nice for grepping and targeting
