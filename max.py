@@ -776,7 +776,11 @@ def dpat_map_users(args, users, potfile):
             nt_query = "" if nt_blank else "SET u.nt_hash='{nt_hash}'".format(nt_hash=nt_hash)
             lm_query = "" if lm_blank else "SET u.lm_hash='{lm_hash}'".format(lm_hash=lm_hash)
             cracked_query = "SET u.cracked={cracked_bool} {nt_query} {lm_query} SET u.ntds_uname='{ntds_uname}' {password}".format(cracked_bool=cracked_bool, nt_query=nt_query, lm_query=lm_query, ntds_uname=ntds_uname, password=password_query)
-            query1 = "MATCH (u:User) WHERE u.name='{username1}' OR (u.name STARTS WITH '{username2}@' AND u.objectid ENDS WITH '-{rid}') {cracked_query} RETURN u.name,u.objectid".format(username1=username, username2=user[0].replace("\\","\\\\").replace("'","\\'").upper(), rid=user[2].upper(), cracked_query=cracked_query)
+            domain_query = ""
+            if args.strict_domain:
+                domain_name = user[1].upper().strip().replace("\\", "\\\\").replace("'", "\\'")
+                domain_query = " AND u.domain='{domain}'".format(domain=domain_name)
+            query1 = "MATCH (u:User) WHERE (u.name='{username1}' OR (u.name STARTS WITH '{username2}@' AND u.objectid ENDS WITH '-{rid}')){domain_query} {cracked_query} RETURN u.name,u.objectid".format(username1=username, username2=user[0].replace("\\","\\\\").replace("'","\\'").upper(), rid=user[2].upper(), cracked_query=cracked_query, domain_query=domain_query)
 
             r1 = do_query(args,query1)
             bh_users = json.loads(r1.text)['results'][0]['data']
@@ -1656,6 +1660,7 @@ def main():
     dpat.add_argument("--html",dest="html",action="store_true",required=False,help="Store the output in HTML format")
     dpat.add_argument("--own-cracked", dest="own_cracked", action="store_true", required=False, help="Mark all users with cracked passwords as owned")
     dpat.add_argument("--add-crack-note",dest="add_crack_note",action="store_true",required=False,help="Add a note to cracked users indicating they have been cracked")
+    dpat.add_argument("--strict-domain", dest="strict_domain", action="store_true", required=False, help="Match domain from NTDS with BloodHound user domain when mapping users")
 
     args = parser.parse_args()
 

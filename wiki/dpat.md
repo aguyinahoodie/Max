@@ -38,6 +38,7 @@ This module with full usage details was released in this blog post: [whynotsecur
 * If you're looking for all accounts using a certain password, you can search using the `-e/--password` flag and inputting the target password. Again, best used with the `--noparse` flag with info already stored
 * The `--own-cracked` flag will tag all cracked users with the `owned` system tag in the Bloodhound database.
 * The `--add-crack-note` flag will add a `password_cracked` system tag to cracked users.
+* The `--strict-domain` flag will only map users when the NTDS domain matches the BloodHound user domain, useful in multi-domain environments.
 
 
 #### NTDS.dit Extraction & Parsing

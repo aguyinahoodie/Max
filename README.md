@@ -110,6 +110,7 @@ DPAT
 ```
 python3 max.py dpat -n ~/client/ntds.dit -c ~/.hashcat/hashcat.potfile -o ouputdir --html --sanitize
 ```
+Use `--strict-domain` when mapping users in multi-domain environments to ensure domains match.
 
 Pet max
 ```
