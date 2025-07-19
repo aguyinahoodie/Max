@@ -780,7 +780,7 @@ def dpat_map_users(args, users, potfile):
             if args.strict_domain:
                 domain_name = user[1].upper().strip().replace("\\", "\\\\").replace("'", "\\'")
                 domain_query = " AND u.domain='{domain}'".format(domain=domain_name)
-            query1 = "MATCH (u:User) WHERE (u.name='{username1}' OR (u.name STARTS WITH '{username2}@' AND u.objectid ENDS WITH '-{rid}')){domain_query} {cracked_query} RETURN u.name,u.objectid".format(username1=username, username2=user[0].replace("\\","\\\\").replace("'","\\'").upper(), rid=user[2].upper(), cracked_query=cracked_query, domain_query=domain_query)
+            query1 = "MATCH (u:User) WHERE (u.name='{username1}' OR (u.name STARTS WITH '{username2}@' AND u.objectid ENDS WITH '-{rid}'{domain_query})) {cracked_query} RETURN u.name,u.objectid".format(username1=username, username2=user[0].replace("\\","\\\\").replace("'","\\'").upper(), rid=user[2].upper(), cracked_query=cracked_query, domain_query=domain_query)
 
             r1 = do_query(args,query1)
             bh_users = json.loads(r1.text)['results'][0]['data']
