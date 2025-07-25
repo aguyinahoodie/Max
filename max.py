@@ -177,15 +177,15 @@ def get_info(args):
             "columns" : ["UserName"]
         },
         "owned" : {
-            "query" : "MATCH (n) WHERE n.owned=true RETURN n.name",
+            "query" : "MATCH (n) WHERE COALESCE(n.system_tags,'') CONTAINS 'owned' RETURN n.name",
             "columns" : ["ObjectName"]
         },
         "owned-groups" : {
-            "query" : "MATCH (n {owned:true}) MATCH (n)-[r:MemberOf*1..]->(g:Group) RETURN DISTINCT n.name,g.name",
+            "query" : "MATCH (n) WHERE COALESCE(n.system_tags,'') CONTAINS 'owned' MATCH (n)-[r:MemberOf*1..]->(g:Group) RETURN DISTINCT n.name,g.name",
             "columns" : ["ObjectName","GroupName"]
         },
         "hvt" : {
-            "query" : "MATCH (n) WHERE n.highvalue=true RETURN n.name",
+            "query" : "MATCH (n) WHERE COALESCE(n.system_tags,'') CONTAINS 'admin_tier_0' RETURN n.name",
             "columns" : ["ObjectName"]
         },
         "desc" : {
@@ -221,7 +221,7 @@ def get_info(args):
             "columns" : ["ObjectName","EdgeName","VictimObjectName"]
         },
         "owned-to-hvts" : {
-            "query" : "MATCH shortestPath((n {owned:True})-[*1..]->(m {highvalue:True})) RETURN DISTINCT n.name",
+            "query" : "MATCH shortestPath((n)-[*1..]->(m)) WHERE COALESCE(n.system_tags,'') CONTAINS 'owned' AND COALESCE(m.system_tags,'') CONTAINS 'admin_tier_0' RETURN DISTINCT n.name",
             "columns" : ["UserName"]
         },
         "path" : {
@@ -233,15 +233,15 @@ def get_info(args):
             "columns" : ["Path"]
         },
         "hvtpaths" : {
-            "query" : "MATCH p=allShortestPaths((n1 {{name:'{start}'}})-[rels*1..]->(n2 {{highvalue:true}})) RETURN p",
+            "query" : "MATCH p=allShortestPaths((n1 {{name:'{start}'}})-[rels*1..]->(n2)) WHERE COALESCE(n2.system_tags,'') CONTAINS 'admin_tier_0' RETURN p",
             "columns" : ["Path"]
         },
         "ownedpaths" : {
-            "query" : "MATCH p=allShortestPaths((n1 {owned:true})-[rels*1..]->(n2 {highvalue:true})) RETURN p",
+            "query" : "MATCH p=allShortestPaths((n1)-[rels*1..]->(n2)) WHERE COALESCE(n1.system_tags,'') CONTAINS 'owned' AND COALESCE(n2.system_tags,'') CONTAINS 'admin_tier_0' RETURN p",
             "columns" : ["Path"]
         },
         "ownedadmins" : {
-            "query": "match (u:User {owned: True})-[r:AdminTo|MemberOf*1..]->(c:Computer) return c.name, \"AdministratedBy\", u.name order by c, u",
+            "query": "MATCH (u:User) WHERE COALESCE(u.system_tags,'') CONTAINS 'owned' MATCH (u)-[r:AdminTo|MemberOf*1..]->(c:Computer) return c.name, \"AdministratedBy\", u.name order by c, u",
             "columns": ["ComputerName", "HasAdmin", "UserName"]
         },
         "staleaccounts" : {
@@ -328,7 +328,7 @@ def get_info(args):
         cols = queries["foreignprivs"]["columns"]
     elif (args.ownedtohvts):
         query = queries["owned-to-hvts"]["query"]
-        cols = queries["owned-to-hvts"]["query"]
+        cols = queries["owned-to-hvts"]["columns"]
     elif (args.unamesess != ""):
         query = queries["sessions"]["query"].format(uname=args.unamesess.upper().strip())
         cols = queries["sessions"]["columns"]
@@ -407,9 +407,10 @@ def mark_owned(args):
 
     if (args.clear):
 
-        query = 'MATCH (n) WHERE n.owned=true SET n.owned=false'
+        query = "MATCH (n) WHERE 'owned' IN coalesce(n.system_tags, []) " \
+                "SET n.system_tags = [t IN n.system_tags WHERE t <> 'owned']"
         r = do_query(args,query)
-        print("[+] 'Owned' attribute removed from all objects.")
+        print("[+] 'owned' tag removed from all objects.")
 
     else:
 
@@ -429,9 +430,12 @@ def mark_owned(args):
                 else:
                     passwd_query = ""
             else:
+                passwd_query = ""
                 uname = line.upper().strip()
 
-            query = 'MATCH (n) WHERE n.name="{uname}" SET n.owned=true {notes} {passwd} RETURN n'.format(uname=uname,passwd=passwd_query,notes=note_string)
+            tag_query = "SET n.system_tags = CASE WHEN n.system_tags IS NULL THEN ['owned'] " \
+                        "WHEN 'owned' IN n.system_tags THEN n.system_tags ELSE n.system_tags + 'owned' END"
+            query = 'MATCH (n) WHERE n.name="{uname}" {tag_query} {notes} {passwd} RETURN n'.format(uname=uname,passwd=passwd_query,notes=note_string, tag_query=tag_query)
             r = do_query(args, query)
 
             fail_resp = '{"results":[{"columns":["n"],"data":[]}],"errors":[]}'
@@ -445,9 +449,10 @@ def mark_hvt(args):
 
     if (args.clear):
 
-        query = 'MATCH (n) WHERE n.highvalue=true SET n.highvalue=false'
+        query = "MATCH (n) WHERE 'admin_tier_0' IN coalesce(n.system_tags, []) " \
+                "SET n.system_tags = [t IN n.system_tags WHERE t <> 'admin_tier_0']"
         r = do_query(args,query)
-        print("[+] 'High Value' attribute removed from all objects.")
+        print("[+] 'admin_tier_0' tag removed from all objects.")
 
     else:
 
@@ -459,7 +464,9 @@ def mark_hvt(args):
 
         for line in f:
 
-            query = 'MATCH (n) WHERE n.name="{uname}" SET n.highvalue=true {notes} RETURN n'.format(uname=line.upper().strip(),notes=note_string)
+            tag_query = "SET n.system_tags = CASE WHEN n.system_tags IS NULL THEN ['admin_tier_0'] " \
+                        "WHEN 'admin_tier_0' IN n.system_tags THEN n.system_tags ELSE n.system_tags + 'admin_tier_0' END"
+            query = 'MATCH (n) WHERE n.name="{uname}" {tag_query} {notes} RETURN n'.format(uname=line.upper().strip(),notes=note_string,tag_query=tag_query)
             r = do_query(args, query)
 
             fail_resp = '{"results":[{"columns":["n"],"data":[]}],"errors":[]}'
@@ -746,15 +753,17 @@ def dpat_map_users(args, users, potfile):
         try:
             nt_hash = user[4]
             lm_hash = user[3]
+            nt_blank = nt_hash == "" or nt_hash.lower() == "31d6cfe0d16ae931b73c59d7e0c089c0"
+            lm_blank = lm_hash == "" or lm_hash.lower() == "aad3b435b51404eeaad3b435b51404ee"
             ntds_uname = '/'.join(filter(None, [user[1], user[0]])).replace("\\","\\\\").replace("'","\\'")
             username = str(user[0].upper().strip() + "@" + user[1].upper().strip()).replace("\\","\\\\").replace("'","\\'")
             cracked_bool = 'false'
             password = None
             password_query = ''
-            if nt_hash in potfile:
+            if (not nt_blank) and nt_hash in potfile:
                 cracked_bool = 'true'
                 password = potfile[nt_hash]
-            elif lm_hash != "aad3b435b51404eeaad3b435b51404ee" and lm_hash in potfile:
+            elif (not lm_blank) and lm_hash in potfile:
                 cracked_bool = 'true'
                 password = potfile[lm_hash]
 
@@ -765,8 +774,14 @@ def dpat_map_users(args, users, potfile):
                 password = password.replace("\\","\\\\").replace("'","\\'")
                 password_query = "SET u.password='{pwd}'".format(pwd=password)
 
-            cracked_query = "SET u.cracked={cracked_bool} SET u.nt_hash='{nt_hash}' SET u.lm_hash='{lm_hash}' SET u.ntds_uname='{ntds_uname}' {password}".format(cracked_bool=cracked_bool,nt_hash=nt_hash,lm_hash=lm_hash,ntds_uname=ntds_uname,password=password_query)
-            query1 = "MATCH (u:User) WHERE u.name='{username1}' OR (u.name STARTS WITH '{username2}@' AND u.objectid ENDS WITH '-{rid}') {cracked_query} RETURN u.name,u.objectid".format(username1=username, username2=user[0].replace("\\","\\\\").replace("'","\\'").upper(), rid=user[2].upper(), cracked_query=cracked_query)
+            nt_query = "" if nt_blank else "SET u.nt_hash='{nt_hash}'".format(nt_hash=nt_hash)
+            lm_query = "" if lm_blank else "SET u.lm_hash='{lm_hash}'".format(lm_hash=lm_hash)
+            cracked_query = "SET u.cracked={cracked_bool} {nt_query} {lm_query} SET u.ntds_uname='{ntds_uname}' {password}".format(cracked_bool=cracked_bool, nt_query=nt_query, lm_query=lm_query, ntds_uname=ntds_uname, password=password_query)
+            domain_query = ""
+            if args.strict_domain:
+                domain_name = user[1].upper().strip().replace("\\", "\\\\").replace("'", "\\'")
+                domain_query = " AND u.domain='{domain}'".format(domain=domain_name)
+            query1 = "MATCH (u:User) WHERE (u.name='{username1}' OR (u.name STARTS WITH '{username2}@' AND u.objectid ENDS WITH '-{rid}'{domain_query})) {cracked_query} RETURN u.name,u.objectid".format(username1=username, username2=user[0].replace("\\","\\\\").replace("'","\\'").upper(), rid=user[2].upper(), cracked_query=cracked_query, domain_query=domain_query)
 
             r1 = do_query(args,query1)
             bh_users = json.loads(r1.text)['results'][0]['data']
@@ -930,7 +945,7 @@ def dpat_func(args):
             "label" : "Enabled User Accounts Cracked"
         },
         {
-            'query' : "match p = (k:Group)<-[:MemberOf*1..]-(m) where k.highvalue = true WITH [ n in nodes(p) WHERE n:User] as ulist UNWIND (ulist) as u RETURN DISTINCT u.enabled,u.ntds_uname,u.password,u.nt_hash",
+            'query' : "match p = (k:Group)<-[:MemberOf*1..]-(m) where COALESCE(k.system_tags,'') CONTAINS 'admin_tier_0' WITH [ n in nodes(p) WHERE n:User] as ulist UNWIND (ulist) as u RETURN DISTINCT u.enabled,u.ntds_uname,u.password,u.nt_hash",
             'label' : "High Value User Accounts Cracked"
         },
         {
@@ -989,7 +1004,7 @@ def dpat_func(args):
             "label" : "Accounts With Paths To Unconstrained Delegation Objects Cracked (Excluding DCs)"
         },
         {
-            "query" : "match p = shortestPath((u)-[*1..]->(n)) where n.highvalue = true AND u <> n WITH [n in nodes(p) WHERE n:User] as ulist UNWIND(ulist) as u MATCH (u {cracked:true}) RETURN DISTINCT u.enabled,u.ntds_uname,u.password,u.nt_hash",
+            "query" : "match p = shortestPath((u)-[*1..]->(n)) where COALESCE(n.system_tags,'') CONTAINS 'admin_tier_0' AND u <> n WITH [n in nodes(p) WHERE n:User] as ulist UNWIND(ulist) as u MATCH (u {cracked:true}) RETURN DISTINCT u.enabled,u.ntds_uname,u.password,u.nt_hash",
             "label" : "Accounts With Paths To High Value Targets Cracked"
         },
         {
@@ -1260,13 +1275,13 @@ def dpat_func(args):
     # set all users with cracked passwords as owned
     if args.own_cracked:
         print("[+] Marking cracked users as owned")
-        own_cracked_query="MATCH (u:User {cracked:True}) SET u.owned=true"
+        own_cracked_query="MATCH (u:User {cracked:True}) SET u.system_tags = CASE WHEN u.system_tags IS NULL THEN ['owned'] WHEN 'owned' IN u.system_tags THEN u.system_tags ELSE u.system_tags + 'owned' END"
         do_query(args,own_cracked_query)
     
     # Add a note to users with cracked passwords indicating that they have been cracked
     if args.add_crack_note:
         print('[+] Adding notes to cracked users')
-        add_crack_note_query="MATCH (u:User {cracked=True} SET u.notes=\"Password Cracked\""
+        add_crack_note_query="MATCH (u:User {cracked:True}) SET u.system_tags = CASE WHEN u.system_tags IS NULL THEN ['password_cracked'] WHEN 'password_cracked' IN u.system_tags THEN u.system_tags ELSE u.system_tags + 'password_cracked' END"
         do_query(args,add_crack_note_query)
 
     # clear the "cracked" tag
@@ -1646,6 +1661,7 @@ def main():
     dpat.add_argument("--html",dest="html",action="store_true",required=False,help="Store the output in HTML format")
     dpat.add_argument("--own-cracked", dest="own_cracked", action="store_true", required=False, help="Mark all users with cracked passwords as owned")
     dpat.add_argument("--add-crack-note",dest="add_crack_note",action="store_true",required=False,help="Add a note to cracked users indicating they have been cracked")
+    dpat.add_argument("--strict-domain", dest="strict_domain", action="store_true", required=False, help="Match domain from NTDS with BloodHound user domain when mapping users")
 
     args = parser.parse_args()
 

@@ -1,13 +1,13 @@
 ## Module: mark-owned
 
-Bulk import of owned assets into the database
+Bulk import of owned assets into the database using the `owned` system tag
 
 [Back to Max](https://github.com/knavesec/Max)
 
 
 #### Notes
 
-* `--clear` will set the 'owned' attribute to false for every object
+* `--clear` will remove the `owned` system tag from every object
 * `--add-note` will set a note on all object, it's found in the BloodHound GUI. This can also be retrieved via the `--get-notes` flag in the `get-info` module
 * `FILENAME` contents must include FQDN similar to the naming style of BloodHound objects. For more info see the "Object Files & Specification" section of the overall readme
 
