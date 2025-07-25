@@ -430,6 +430,7 @@ def mark_owned(args):
                 else:
                     passwd_query = ""
             else:
+                passwd_query = ""
                 uname = line.upper().strip()
 
             tag_query = "SET n.system_tags = CASE WHEN n.system_tags IS NULL THEN ['owned'] " \
